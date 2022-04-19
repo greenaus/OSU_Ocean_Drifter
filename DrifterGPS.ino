@@ -2,13 +2,19 @@
 #include <TinyGPS.h> 
 #include <Adafruit_MAX31856.h>
 #include "DHT.h"
+#include <SPI.h>
+#include <SD.h>
 
 #define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
 #define DHTPIN 2     // Digital pin connected to the DHT sensor
 
 float lat = 28.5458,lon = 77.1703; // create variable for latitude and longitude object  
 int option =2;
+String first_name = "";
+String last_name = "";
+String major = "";
 
+File myFile;
 SoftwareSerial gpsSerial(3,4);//rx,tx 
 TinyGPS gps; // create gps object 
 Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(10, 11, 12, 13);
@@ -16,6 +22,7 @@ DHT dht(DHTPIN, DHTTYPE);
 
 void setup(){ 
   Serial.begin(9600); // connect serial 
+
   //Serial.println("The GPS Received Signal:"); 
   gpsSerial.begin(9600); // connect gps sensor 
 
@@ -23,6 +30,46 @@ void setup(){
   dht.begin();
   
   maxthermo.setThermocoupleType(MAX31856_TCTYPE_K);
+  /*
+  Serial.print("Initializing SD card...");
+  if (!SD.begin(9)) {
+    Serial.println("Initialization failed!");
+    while(1);
+  }
+  Serial.println("Initialization done.");
+*/
+  /*
+  Serial.println("Input first name: ");
+  while (Serial.available() == 0) {}
+  first_name = Serial.readString();
+  Serial.println("Input last name: ");
+  while (Serial.available() == 0) {}
+  last_name = Serial.readString();
+  Serial.println("Input major: ");
+  while (Serial.available() == 0) {}
+  major = Serial.readString();
+
+  myFile = SD.open("test.txt");
+  if (myFile.available()) {
+    SD.remove("test.txt");
+    Serial.println("Removed existing file from SD card.");
+  }
+  myFile.close();
+
+  myFile = SD.open("test.txt", FILE_WRITE);
+  if (myFile) {
+    Serial.print("Writing to file...");
+    myFile.println("First name: " + first_name);
+    myFile.println("Last name: " + last_name);
+    myFile.println("Major: " + major);
+    myFile.close();
+    Serial.println("Done!");
+  }
+  else {
+    Serial.println("Error opening file.");
+  }
+  */
+  
   
 } 
 
@@ -96,6 +143,8 @@ void loop(){
     Serial.print(hif);
     Serial.println(F("°F"));
   }
+
+  
   else{
     Serial.println("No Sensor Selected!");  
   }
