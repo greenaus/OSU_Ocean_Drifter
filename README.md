@@ -4,11 +4,10 @@ The code repo for the HC 407 ocean drifter dev-kit
 
 ## ArudinoGPS.ino Dependencies:
 
-Adafruit Circuit Playground
-Adafruit MAX31856 Library
-
-DHT sensor library
-
+Adafruit Unified Sensor  
+Adafruit Circuit Playground  
+Adafruit MAX31856 Library  
+DHT sensor library  
 Tiny GPS
 
 ## Current Arduino Pinout
