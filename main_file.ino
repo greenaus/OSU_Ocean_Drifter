@@ -1,111 +1,115 @@
 #include <TinyGPS++.h>
-#include <SoftwareSerial.h>
 #include <SD.h>
 #include <SPI.h>
-#include <Adafruit_MAX31856.h>
+#include "max6675.h"
 
-//SD Card Module: CS: 10, SCK: 13, MOSI: 11, MISO: 12
-//Thermocouple Module: SCK: 8, SDO: 7, SDI: 6, CS: 5
-//GPS Module: RX: 4, TX: 3
+int sckPin = 52;
+int soPin = 50;
+int cs1Pin = 13;
+int cs2Pin = 12;
 
-static const int RXPin = 4, TXPin = 3;
-static const uint32_t GPSBaud = 9600;
-
-int count = 0;
-
-// The TinyGPS++ object
+MAX6675 thermocouple1(sckPin, cs1Pin, soPin);
+MAX6675 thermocouple2(sckPin, cs2Pin, soPin);
 TinyGPSPlus gps;
-
-// The serial connection to the GPS device
-SoftwareSerial ss(TXPin, RXPin);
-
-// The file
 File myFile;
 
-// Thermocouple initialization
-Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(5, 6, 7, 8);
+int count = 0;
+double latitude = 0;
+double longitude = 0;
+double hours = 0;
+double minutes = 0;
+double seconds = 0;
+float temp1_celsius = 0;
+float temp2_celsius = 0;
 
-void setup(){
+void setup() {
   Serial.begin(9600);
-  ss.begin(GPSBaud);
+  Serial1.begin(9600);
 
+  //SD card initialization
   Serial.println("Initializing SD card...");
-  if (!SD.begin(10)) {
+  if (!SD.begin(53)) {
     Serial.println("Initialization failed!");
     while(1);
   }
   Serial.println("Initialization done.");
   Serial.println();
+  
+  if (SD.exists("data.txt")) SD.remove("data.txt"); //if there's already a file, delete it
 
-  if (SD.exists("gps_data.txt")) SD.remove("gps_data.txt");
-
-  while (!Serial) delay(10);
-  Serial.println("MAX31856 thermocouple initialized");
-  Serial.println();
-  maxthermo.begin();
-  maxthermo.setThermocoupleType(MAX31856_TCTYPE_K);
-
-  cli();
-
+  //timer/counter1 initialization
+  cli(); //stop interrupts
   TCCR1A = 0;
   TCCR1B = 0;
   TCNT1 = 0;
-  
-  OCR1A = 15624;
-
-  TCCR1B |= (1 << WGM12);
-  TCCR1B |= (1 << CS12) | (1 << CS10);
+  OCR1A = 15624; // 1 Hz
+  TCCR1B |= (1 << WGM12); //ctc mode
+  TCCR1B |= (1 << CS12) | (1 << CS10); //prescaler
   TIMSK1 |= (1 << OCIE1A);
-
-  sei();
+  sei(); //start interrupts
 }
 
 ISR(TIMER1_COMPA_vect) {
-  count++;
+  count++; //increment count
 }
 
 void loop() {
-  if (count == 10) {
-    while (ss.available() > 0){
-      gps.encode(ss.read());
-      if (gps.location.isUpdated()){
+  if (count == 5) {
+    while (Serial1.available()) {
+      gps.encode(Serial1.read());
+      if (gps.location.isUpdated()) {
+        latitude = gps.location.lat(), 6;
+        longitude = gps.location.lng(), 6;
+        hours = gps.time.hour();
+        minutes = gps.time.minute();
+        seconds = gps.time.second();
+        temp1_celsius = thermocouple1.readCelsius();
+        temp2_celsius = thermocouple2.readCelsius();
+
         Serial.print("Latitude: "); 
-        Serial.print(gps.location.lat(), 6);
+        Serial.print(latitude);
         Serial.print(", Longitude: "); 
-        Serial.println(gps.location.lng(), 6);
+        Serial.println(longitude);
         Serial.print("Hour: ");
-        Serial.print(gps.time.hour());
+        Serial.print(hours);
         Serial.print(", Minute: ");
-        Serial.print(gps.time.minute());
+        Serial.print(minutes);
         Serial.print(", Second: ");
-        Serial.println(gps.time.second());
-        Serial.print("Cold Junction Temperature: ");
-        Serial.println(maxthermo.readCJTemperature());
-        Serial.print("Thermocouple Temperature: ");
-        Serial.println(maxthermo.readThermocoupleTemperature());
+        Serial.println(seconds);
+
+        Serial.print("Thermocouple 1 Temperature: ");
+        Serial.println(temp1_celsius);
+        Serial.print("Thermocouple 2 Temperature: ");
+        Serial.println(temp2_celsius);
+
         Serial.println();
-  
-        myFile = SD.open("gps_data.txt", FILE_WRITE);
+
+        myFile = SD.open("data.txt", FILE_WRITE);
         myFile.seek(EOF);
+
         myFile.print("Latitude: "); 
-        myFile.print(gps.location.lat(), 6);
+        myFile.print(latitude);
         myFile.print(", Longitude: "); 
-        myFile.println(gps.location.lng(), 6);
+        myFile.println(longitude);
         myFile.print("Hour: ");
-        myFile.print(gps.time.hour());
+        myFile.print(hours);
         myFile.print(", Minute: ");
-        myFile.print(gps.time.minute());
+        myFile.print(minutes);
         myFile.print(", Second: ");
-        myFile.println(gps.time.second());
-        myFile.print("Cold Junction Temperature: ");
-        myFile.println(maxthermo.readCJTemperature());
-        myFile.print("Thermocouple Temperature: ");
-        myFile.println(maxthermo.readThermocoupleTemperature());
+        myFile.println(seconds);
+
+        myFile.print("Thermocouple 1 Temperature: ");
+        myFile.println(temp1_celsius);
+        myFile.print("Thermocouple 2 Temperature: ");
+        myFile.println(temp2_celsius);
+
         myFile.println();
+        
         myFile.close();
 
-        count = 1;
+        count = 0;
       }
     }
   }
+  if (count > 5) count = 0;
 }
